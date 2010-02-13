@@ -1,0 +1,24 @@
+#!/bin/sh
+# (c) Eugeny Borisov 2010
+
+
+#. /etc/initrd.defaults
+. /etc/initrd.scripts
+
+check_for_initrd_parent
+mount_initrd_needed
+setup_symlinks
+
+env_from_cmd_line_opts ROOT REAL_ROOT LOADMODULES
+
+load_modules $LOADMODULES
+
+
+
+
+
+echo 'A fatal error has probably occured since /sbin/init did not'
+echo 'boot correctly. Trying to open a shell...'
+echo
+exec /bin/ash
+

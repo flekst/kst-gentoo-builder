@@ -1,0 +1,100 @@
+#!/bin/ash
+
+. /etc/initrd.defaults
+
+mount_initrd_needed(){
+    mount -t proc proc /proc >/dev/null 2>&1
+#    mount -o remount,rw / >/dev/null 2>&1
+}
+
+setup_symlinks() {
+# Set up symlinks
+    /bin/busybox --install -s
+    
+    if [ "$0" = '/init' ]
+    then
+	[ -e /linuxrc ] && rm /linuxrc
+	
+	if [ -e /bin/lvm ]
+	then
+	    ln -s /bin/lvm /bin/vgscan
+	    ln -s /bin/lvm /bin/vgchange
+	fi
+    fi
+}
+
+uppercase(){
+	# needs tr on busybox
+	echo $1 | tr 'a-z' 'A-Z'
+}
+
+parse_opt() {
+	case "$1" in
+		*\=*)
+			echo "$1" | cut -d= -f2-
+		;;
+	esac
+}
+
+get_opt_name() {
+    echo $1 |   sed 's/=.*$//' | tr 'a-z' 'A-Z'
+}
+
+get_opt_param() {
+    echo $1 |   sed 's/^.*=//' 
+}
+
+
+# get command line opts
+# if exists - setup variable
+# UPPERCASE_NAME=value
+# if is a flag setup variable
+# UPPERCASE_NAME=1
+# example get_cmd_line_opts ROOT ReSUME PARAM1 PARAM2 flag2
+env_from_cmd_line_opts()  {
+local    CMDLINE=`cat /proc/cmdline`
+
+#for debugging
+#    CMDLINE=`cat ./cmdtest`
+
+    for i in ${CMDLINE}
+    do
+local	TMP_OPT_NAME=$(get_opt_name $i)
+	for j in $@
+	do
+local	    j=`uppercase $j`
+	    if [ $j = $TMP_OPT_NAME ] ; then
+local		TMP_OPT_VALUE=$(get_opt_param $i)
+local		TMP_OPT_VALUE_TEST=`uppercase $TMP_OPT_VALUE`
+		
+		if [ $TMP_OPT_NAME \
+		    = $TMP_OPT_VALUE_TEST ] ; then
+		    TMP_OPT_VALUE=1
+
+		fi
+		
+		eval "$TMP_OPT_NAME=$TMP_OPT_VALUE"
+		break
+            fi
+	done
+    done
+
+}
+
+
+ load_modules(){
+     for i in $@ ; do
+	 /usr/sbin/modprobe $i
+     done
+ }
+
+ #
+ # $1 = device
+ # $2 = mountpoint
+ # $3 = opts
+ mount_root() {
+     /usr/bin/mount $1 $2 -o $3
+     mount -o bind /dev $2/dev
+     mount -t proc none $2/proc
+
+}
